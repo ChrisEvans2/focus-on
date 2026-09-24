@@ -1,0 +1,64 @@
+{
+    "configurations": [
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:focus-on}/macos",
+            "name": "Debug FocusOn (macos)",
+            "target": "FocusOn",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug FocusOn (macos)"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:focus-on}/macos",
+            "name": "Release FocusOn (macos)",
+            "target": "FocusOn",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release FocusOn (macos)"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:focus-on}/macos",
+            "name": "Debug FocusGazeDebug (macos)",
+            "target": "FocusGazeDebug",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug FocusGazeDebug (macos)"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:focus-on}/macos",
+            "name": "Release FocusGazeDebug (macos)",
+            "target": "FocusGazeDebug",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release FocusGazeDebug (macos)"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:focus-on}/macos",
+            "name": "Debug FocusCoreChecks (macos)",
+            "target": "FocusCoreChecks",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug FocusCoreChecks (macos)"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:focus-on}/macos",
+            "name": "Release FocusCoreChecks (macos)",
+            "target": "FocusCoreChecks",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release FocusCoreChecks (macos)"
+        }
+    ]
+}

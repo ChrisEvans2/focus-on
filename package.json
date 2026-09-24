@@ -1,0 +1,37 @@
+{
+  "name": "focus-on",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Focus On — a calm, task-first focus timer for desktop",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc --noEmit && vite build",
+    "test": "playwright test",
+    "preview": "vite preview --host 127.0.0.1",
+    "mac:build": "bash scripts/build-macos.sh",
+    "mac:open": "open \"build/Focus On.app\"",
+    "test:native": "swift run --package-path macos FocusCoreChecks",
+    "test:mac": "bash scripts/smoke-macos.sh",
+    "gaze:debug": "bash scripts/gaze-debug.sh",
+    "test:gaze-debug": "bash scripts/gaze-debug.sh --smoke-test"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "@phosphor-icons/react": "^2.1.10",
+    "motion": "^13.4.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^26.6.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.1",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.0"
+  }
+}
