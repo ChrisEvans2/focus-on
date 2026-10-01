@@ -10,8 +10,12 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources/Web"
 cp "$BINARY_DIR/FocusOn" "$APP/Contents/MacOS/FocusOn.new"
 mv -f "$APP/Contents/MacOS/FocusOn.new" "$APP/Contents/MacOS/FocusOn"
 cp macos/Info.plist "$APP/Contents/Info.plist"
+bash scripts/build-icon.sh
+cp build/FocusOn.icns "$APP/Contents/Resources/FocusOn.icns"
 # Replace only generated web resources so removed assets cannot linger in the bundle.
 rsync -a --delete dist/ "$APP/Contents/Resources/Web/"
+# Keep SwiftPM image resources inside the distributable app, not in the build cache.
+rsync -a --delete "$BINARY_DIR/FocusOn_FocusOn.bundle/" "$APP/Contents/Resources/FocusOn_FocusOn.bundle/"
 codesign --force --sign "${FOCUS_SIGN_IDENTITY:--}" --options runtime --entitlements macos/FocusOn.entitlements "$APP"
 codesign --verify --strict "$APP"
 echo "Built: $PWD/$APP"
