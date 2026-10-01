@@ -47,6 +47,11 @@ export function HistoryPanel({ tasks, onClose, onDelete }: { tasks: HistoryTask[
                 <span>专注 {focusDuration(task.focusSeconds)}</span>
                 <span title="记录摄像头触发的宠物提醒次数">分神 {task.distractions} 次</span>
               </div>
+              {task.spans.length > 0 && <ul className="history-spans" aria-label="专注记录">
+                {task.spans.map((span, index) => <li key={`${span.session}-${index}`}>
+                  <time dateTime={new Date(span.at).toISOString()}>{timeFormat.format(span.at)}</time> 专注 {focusDuration(span.seconds)}
+                </li>)}
+              </ul>}
             </div>
             <button className="icon-button history-delete" data-task-id={task.id} aria-label={`删除历史任务：${task.title}`} title="删除这条历史记录" onClick={() => remove(task.id)}><Trash size={18} /></button>
           </li>)}</ul>

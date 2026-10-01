@@ -21,7 +21,8 @@ test('focus accounting excludes breaks and pauses, survives reset, and archives 
   state = reducer(state, { type: 'distraction', id: 'reminder-2', sessionId: 'second', at: start + 2_020_000 });
   state = reducer(state, { type: 'complete', id: 'a', now: start + 2_120_000 });
   state = reducer(state, { type: 'complete', id: 'a', now: start + 2_120_001 });
-  expect(state.history).toEqual([{ id: 'a', title: '写完方案', completedAt: start + 2_120_000, focusSeconds: 1020, distractions: 2 }]);
+  expect(state.history).toEqual([{ id: 'a', title: '写完方案', completedAt: start + 2_120_000, focusSeconds: 1020, distractions: 2,
+    spans: [{ at: start, seconds: 900, session: 'first' }, { at: start + 2_000_000, seconds: 120, session: 'second' }] }]);
   expect(state.tasks).toEqual([]);
   expect(state.session).toBeNull();
 });
@@ -34,6 +35,7 @@ test('timer completion credits focus once without claiming the task is complete'
   state = reducer(state, { type: 'tick', now: start + 3_600_000 * 3 });
   state = reducer(state, { type: 'tick', now: start + 3_600_000 * 4 });
   expect(state.tasks[0].focusSeconds).toBe(1800);
+  expect(state.tasks[0].spans).toEqual([{ at: start + 300_000, seconds: 1800, session: 'a-session' }]);
   expect(state.history).toEqual([]);
   expect(state.stats).toEqual({ day: dayKey(start + 2_100_000), count: 1 });
   state = reducer(state, { type: 'complete', id: 'a', now: start + 3_600_000 * 4 });
@@ -76,6 +78,38 @@ test('anonymous time, queued tasks, break alerts and old saved data do not leak 
   expect(duringBreak.tasks[0].distractions).toBe(0);
   expect(reducer(duringBreak, { type: 'complete', id: 'old', now: start + 10_000 }).history[0].focusSeconds).toBe(900);
   expect(focusSecondsAt({ minutes: 60, elapsed: 99999, startedAt: null, done: true }, start)).toBe(3000);
+});
+
+test('a finished timer logs focus spans on the unfinished task, listed in history after completion', async ({ page }) => {
+  await page.clock.install({ time: new Date(2026, 8, 24, 14, 0) });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/');
+  const input = page.getByRole('textbox');
+  await input.fill('写季度总结');
+  await input.press('Enter');
+  const slider = page.getByRole('slider', { name: '专注时长' });
+  await slider.focus();
+  await slider.press('Home');
+  for (let i = 0; i < 4; i++) await slider.press('PageUp'); // 20 分钟
+  await page.getByRole('button', { name: '开始任务' }).click();
+  await page.clock.fastForward(1_200_000);
+  await expect(page.locator('[role="status"]').first()).toHaveText('本次专注已完成');
+  // The task is not done yet, but the finished focus time already belongs to it.
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('focus-on.v1')!));
+  expect(saved.tasks[0].focusSeconds).toBe(1200);
+  expect(saved.tasks[0].spans).toHaveLength(1);
+  expect(saved.tasks[0].spans[0].seconds).toBe(1200);
+  expect(Math.abs(saved.tasks[0].spans[0].at - new Date(2026, 8, 24, 14, 0).getTime())).toBeLessThan(10_000);
+  expect(saved.history).toEqual([]);
+  // One more 20-minute session, then the task is finally completed.
+  await page.getByRole('button', { name: '开始任务' }).click();
+  await page.clock.fastForward(1_200_000);
+  await page.getByRole('button', { name: '完成任务：写季度总结', exact: true }).click();
+  await page.getByRole('button', { name: '查看历史任务' }).click();
+  await expect(page.locator('.history-details')).toContainText('专注 40 分钟');
+  await expect(page.locator('.history-spans li')).toHaveCount(2);
+  await expect(page.locator('.history-spans li').first()).toHaveText('14:00 专注 20 分钟');
+  await expect(page.locator('.history-spans li').last()).toHaveText('14:20 专注 20 分钟');
 });
 
 test('history records native reminders, completion time and focused time across pause and reload', async ({ page }) => {
@@ -229,7 +263,7 @@ test('deleting history persists, removes empty date groups and preserves current
   const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('focus-on.v1')!));
   expect(stored.history).toEqual([]);
   expect(stored.stats.count).toBe(4);
-  expect(stored.tasks).toEqual([{ id: 'active', title: '继续写方案', focusSeconds: 70, distractions: 1 }]);
+  expect(stored.tasks).toEqual([{ id: 'active', title: '继续写方案', focusSeconds: 70, distractions: 1, spans: [] }]);
   await page.getByRole('button', { name: '关闭历史任务' }).click();
   await expect(page.getByRole('heading', { name: '继续写方案' })).toBeVisible();
 });

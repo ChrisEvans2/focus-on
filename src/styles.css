@@ -104,8 +104,13 @@ button svg { flex-shrink: 0; }
 .plan-arrow { color: #aeb5a7; }
 .action-row { display: flex; align-items: center; justify-content: center; position: relative; }
 .start-button { display: inline-flex; align-items: center; justify-content: center; gap: 12px; min-width: 218px; height: 54px; padding: 0 25px; color: white; background: var(--green); border: 0; border-radius: 28px; box-shadow: 0 8px 16px #5d83741c; font-size: 16px; font-weight: 550; }
-.start-button:hover { background: var(--green-dark); }
-.start-button:active { transform: translateY(1px); }
+.start-button:hover:not(:disabled) { background: var(--green-dark); }
+.start-button:active:not(:disabled) { transform: translateY(1px); }
+.start-button:disabled { box-shadow: none; }
+.start-button.rest-button { background: var(--orange); box-shadow: none; }
+.start-button.rest-button:hover { background: color-mix(in srgb, var(--orange) 88%, var(--text)); }
+.start-button.rest-button:focus-visible { outline-color: var(--orange); }
+.dial.on-break .dial-status { color: var(--orange); }
 .start-button kbd { font: inherit; font-size: 11px; font-weight: 400; opacity: .68; margin-left: 12px; }
 .reset-button { position: absolute; left: calc(50% + 124px); }
 .session-note { margin: 15px 0 0; color: var(--muted); font-size: 11px; }
@@ -137,6 +142,8 @@ button svg { flex-shrink: 0; }
 .history-delete:hover { color: #965c4e; background: #f0e8e2; }
 .history-title { font-size: 21px; font-weight: 500; line-height: 1.5; color: #718575; text-decoration-thickness: 1px; text-decoration-color: #94aa99; overflow-wrap: anywhere; }
 .history-details { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 8px; font-size: 12px; line-height: 1.6; color: var(--muted); font-variant-numeric: tabular-nums; }
+.history-spans { display: flex; flex-wrap: wrap; gap: 3px 14px; margin: 5px 0 0; padding: 0; list-style: none; font-size: 11px; line-height: 1.6; color: var(--muted); font-variant-numeric: tabular-nums; }
+.history-spans li::before { content: '· '; }
 .history-empty { text-align: center; color: #849b88; padding: 65px 0; }
 .history-empty p { font-size: 16px; margin: 18px 0 10px; }
 .history-empty span { font-size: 13px; color: var(--muted); }
@@ -243,7 +250,7 @@ button svg { flex-shrink: 0; }
 :root[data-theme="dark"] {
     color-scheme: dark;
     --canvas: #232221; --surface: #2d2b29; --text: #ebebeb; --muted: #ababab;
-    --green: #d6e92f; --green-dark: var(--green); --orange: #b9c1db;
+    --green: #d6e92f; --green-dark: var(--green); --orange: #7f96e3;
     --line: #3b3b3b; --soft: #333333;
     /* Accent text shares the lime hue; supporting text stays neutral. */
     --accent-hover: color-mix(in srgb, var(--green), white 12%);
@@ -288,7 +295,7 @@ button svg { flex-shrink: 0; }
 :where(:root[data-theme="dark"]) .theme-option input:checked + span { background: var(--accent-soft); color: var(--green); }
 :where(:root[data-theme="dark"]) .plan-arrow { color: var(--muted); }
 :where(:root[data-theme="dark"]) .start-button { color: var(--on-accent); box-shadow: 0 8px 16px #00000024; }
-:where(:root[data-theme="dark"]) .start-button:hover { background: var(--accent-hover); }
+:where(:root[data-theme="dark"]) .start-button:hover:not(:disabled) { background: var(--accent-hover); }
 :where(:root[data-theme="dark"]) .history-task { border-color: color-mix(in srgb, var(--line) 50%, transparent); }
 :where(:root[data-theme="dark"]) .history-check, :where(:root[data-theme="dark"]) .history-delete, :where(:root[data-theme="dark"]) .history-empty { color: var(--history-accent); }
 :where(:root[data-theme="dark"]) .history-title { color: var(--history-accent); text-decoration-color: var(--history-accent); }

@@ -1,0 +1,17 @@
+{
+  "checks" : [
+    "The generated transparent peek atlas loads from inside the shipped app with all four theme\/expression frames intact",
+    "Starting a session does not show a phase-end reminder",
+    "Focus deadline shows a text-only rest reminder even with camera monitoring off",
+    "Phase pets sit inside the right screen edge, have no buttons and cannot take keyboard or mouse focus",
+    "Repeated ticks and syncs do not duplicate phase reminders or restart their lifetime",
+    "Break deadline updates the pet text for the next focus",
+    "Completion arriving from the web before a native tick still shows the final reminder",
+    "Stopping or resetting clears phase reminders and animation",
+    "Pausing a break dismisses its phase reminder",
+    "The larger 160 by 220 point peek enters from outside and stays flush with the clipping edge",
+    "The pet loops smile and wink continuously; reduced motion gives a settled static smile",
+    "Text-only reminders dismiss automatically and release their panels and timers"
+  ],
+  "passed" : true
+}

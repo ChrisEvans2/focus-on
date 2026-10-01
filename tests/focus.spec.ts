@@ -30,6 +30,29 @@ test('start submits a draft, animates the task layout and keeps pause drafts unt
   await expect(page.getByRole('button', { name: '暂停任务' })).toBeVisible();
 });
 
+test('zero minutes disables the start button and the minus adjustment', async ({ page }) => {
+  await page.goto('/');
+  const slider = page.getByRole('slider', { name: '专注时长' });
+  await slider.focus();
+  await slider.press('Home');
+  await expect(slider).toHaveAttribute('aria-valuenow', '0');
+  await expect(page.locator('.dial-time')).toHaveText('00:00');
+  const start = page.getByRole('button', { name: '开始任务' });
+  await expect(start).toBeDisabled();
+  expect(await start.evaluate(el => parseFloat(getComputedStyle(el).opacity))).toBeLessThan(1);
+  await expect(page.getByRole('button', { name: '减少 5 分钟' })).toBeDisabled();
+  // Keyboard shortcuts cannot start a zero-minute session either.
+  await page.keyboard.press('Control+Enter');
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('focus-on.v1')!).session)).toBeNull();
+  await slider.press('ArrowLeft');
+  await expect(slider).toHaveAttribute('aria-valuenow', '0');
+  await page.getByRole('button', { name: '增加 5 分钟' }).click();
+  await expect(page.locator('.dial-time')).toHaveText('05:00');
+  await expect(start).toBeEnabled();
+  await start.click();
+  await expect(page.getByRole('button', { name: '暂停任务' })).toBeVisible();
+});
+
 test('mouse-opened settings and history leave no focus ring; keyboard navigation retains it', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/');
@@ -141,10 +164,10 @@ test('two-lap drag, clamp at 120, reverse, keyboard and split preview', async ({
   await expect(page.locator('.dial-time')).toHaveText('120:00');
   await slider.press('Home');
   for (let i = 0; i < 7; i++) await slider.press('PageUp');
-  await expect(slider).toHaveAttribute('aria-valuenow', '36');
-  await expect(page.locator('.dial-time')).toHaveText('36:00');
-  await slider.press('ArrowLeft');
+  await expect(slider).toHaveAttribute('aria-valuenow', '35');
   await expect(page.locator('.dial-time')).toHaveText('35:00');
+  await slider.press('ArrowLeft');
+  await expect(page.locator('.dial-time')).toHaveText('34:00');
 });
 
 test('timer pauses, reloads and advances into break and second focus', async ({ page }) => {

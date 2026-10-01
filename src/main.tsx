@@ -1,7 +1,7 @@
 import React, { useEffect, useReducer, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { AnimatePresence, motion, MotionConfig, useReducedMotion } from 'motion/react';
-import { ArrowElbowDownLeft, Check, GearSix, Minus, Pause, PencilSimple, Play, Plus, ArrowCounterClockwise, Medal, List, X } from '@phosphor-icons/react';
+import { ArrowElbowDownLeft, Check, GearSix, Minus, Pause, PencilSimple, Play, Plus, ArrowCounterClockwise, Medal, List, X, SkipForward } from '@phosphor-icons/react';
 import { Dial } from './Dial';
 import { dayKey, sessionView } from './session';
 import { HistoryPanel } from './HistoryPanel';
@@ -57,6 +57,7 @@ function App() {
   const running = state.session?.startedAt != null;
   const locked = !!state.session && !state.session.done;
   const view = sessionView(state.session, state.minutes, now);
+  const resting = locked && view.phase.kind === 'break';
   const current = state.tasks[0];
   const phaseKey = state.session ? `${view.index}:${state.session.done}` : '';
   const monitor = useNativeMonitoring(state.session, () => {
@@ -69,7 +70,7 @@ function App() {
     const control = (event: Event) => {
       if (!isNative()) return;
       const action = (event as CustomEvent<{ action?: string }>).detail?.action;
-      if (action !== 'toggle' && action !== 'reset') return;
+      if (action !== 'toggle' && action !== 'reset' && action !== 'skip-break') return;
       const time = Date.now();
       setNow(time);
       // Menu-bar controls affect the saved session without submitting an unfinished draft.
@@ -100,6 +101,12 @@ function App() {
     previousPhase.current = phaseKey;
   }, [phaseKey, state.sound]);
   function toggle() {
+    if (resting) {
+      const time = Date.now(); setNow(time); dispatch({ type: 'skip-break', now: time });
+      return;
+    }
+    // Starting a fresh session needs at least one minute; the button is disabled then too.
+    if (!locked && state.minutes < 1) return;
     if (state.sound) { audio.current ??= new AudioContext(); void audio.current.resume(); }
     const time = Date.now();
     // Submit a draft on start/resume; pausing must leave unfinished input alone.
@@ -177,8 +184,8 @@ function App() {
 
           <motion.section layout className="timer-section" aria-label="专注计时器">
             <Dial minutes={state.minutes} onChange={duration} locked={locked || !!state.session?.done} remaining={view.remaining} phaseSeconds={view.phase.seconds} phase={view.phase.kind} nextPhase={view.plan[view.index + 1]?.kind} done={!!state.session?.done} />
-            <div className="timer-adjust">
-              <button className="adjust-button" aria-label="减少 5 分钟" disabled={locked || state.minutes <= 1} onClick={() => duration(state.minutes - 5)}><Minus size={16} /></button>
+            <div className="timer-adjust" style={resting ? { visibility: 'hidden' } : undefined}>
+              <button className="adjust-button" aria-label="减少 5 分钟" disabled={locked || state.minutes <= 0} onClick={() => duration(state.minutes - 5)}><Minus size={16} /></button>
               <button className="adjust-button" aria-label="增加 5 分钟" disabled={locked || state.minutes >= 120} onClick={() => duration(state.minutes + 5)}><Plus size={16} /></button>
             </div>
           </motion.section>
@@ -187,8 +194,8 @@ function App() {
 
         <div className="session-controls">
           <div className="action-row">
-            <button className="start-button" onClick={toggle}>{running ? <Pause size={20} weight="fill" /> : <Play size={20} weight="fill" />}<span>{running ? '暂停任务' : locked ? '继续任务' : '开始任务'}</span></button>
-            {state.session && <button className="reset-button icon-button" aria-label="重置计时" onClick={() => { dispatch({ type: 'reset', now: Date.now() }); setNotice('计时已重置'); }}><ArrowCounterClockwise size={21} /></button>}
+            <button className={`start-button${resting ? ' rest-button' : ''}`} disabled={!locked && state.minutes < 1} onClick={toggle}>{resting ? <SkipForward size={20} weight="fill" /> : running ? <Pause size={20} weight="fill" /> : <Play size={20} weight="fill" />}<span>{resting ? '跳过休息' : running ? '暂停任务' : locked ? '继续任务' : '开始任务'}</span></button>
+            {state.session && !resting && <button className="reset-button icon-button" aria-label="重置计时" onClick={() => { dispatch({ type: 'reset', now: Date.now() }); setNotice('计时已重置'); }}><ArrowCounterClockwise size={21} /></button>}
           </div>
         </div>
         <footer className="app-footer"><span><Medal size={18} />今日已完成 <strong>{state.stats.day === dayKey(now) ? state.stats.count : 0}</strong> 次专注</span>

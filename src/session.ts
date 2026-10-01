@@ -1,6 +1,6 @@
 export type Phase = { kind: 'focus' | 'break'; seconds: number };
 export type Session = { minutes: number; elapsed: number; startedAt: number | null; done: boolean; id?: string };
-export const clampMinutes = (n: number) => Math.min(120, Math.max(1, Math.round(n)));
+export const clampMinutes = (n: number) => Math.min(120, Math.max(0, Math.round(n)));
 
 export function makePlan(minutes: number): Phase[] {
   const totalMinutes = clampMinutes(minutes);

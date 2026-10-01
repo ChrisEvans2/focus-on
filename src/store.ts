@@ -1,7 +1,8 @@
 import { clampMinutes, dayKey, elapsedAt, focusSecondsAt, sessionView } from './session';
 import type { Session } from './session';
 
-export type Task = { id: string; title: string; focusSeconds: number; distractions: number };
+export type FocusSpan = { at: number; seconds: number; session: string };
+export type Task = { id: string; title: string; focusSeconds: number; distractions: number; spans: FocusSpan[] };
 export type HistoryTask = Task & { completedAt: number };
 type TrackedSession = Session & { id: string; taskId: string | null; creditedFocusSeconds: number; distractionIDs: string[] };
 export type State = {
@@ -14,7 +15,7 @@ export type Action =
   | { type: 'remove' | 'select'; id: string }
   | { type: 'delete-history'; id: string }
   | { type: 'complete'; id: string; now: number }
-  | { type: 'toggle' | 'pause' | 'reset' | 'tick'; now: number; sessionId?: string }
+  | { type: 'toggle' | 'pause' | 'reset' | 'tick' | 'skip-break'; now: number; sessionId?: string }
   | { type: 'distraction'; sessionId: string; id: string; at: number }
   | { type: 'sound'; enabled: boolean };
 
@@ -30,7 +31,10 @@ export function restoreState(saved: unknown): State {
   if (!Number.isFinite(data.minutes) || !Array.isArray(data.tasks)) return initial;
   function task(value: any): Task | null {
     if (typeof value?.id !== 'string' || typeof value?.title !== 'string' || !value.title.trim()) return null;
-    return { id: value.id, title: value.title.slice(0, 160), focusSeconds: nonnegative(value.focusSeconds), distractions: Math.floor(nonnegative(value.distractions)) };
+    const spans: FocusSpan[] = (Array.isArray(value.spans) ? value.spans : []).flatMap((span: any) =>
+      Number.isFinite(span?.at) && span.at > 0 && span.at <= 8.64e15 && Number.isFinite(span?.seconds) && span.seconds > 0 && typeof span?.session === 'string'
+        ? [{ at: span.at, seconds: span.seconds, session: span.session }] : []);
+    return { id: value.id, title: value.title.slice(0, 160), focusSeconds: nonnegative(value.focusSeconds), distractions: Math.floor(nonnegative(value.distractions)), spans };
   }
   const tasks = data.tasks.map(task).filter((t: Task | null): t is Task => t !== null);
   const history: HistoryTask[] = (Array.isArray(data.history) ? data.history : []).flatMap((value: any) => {
@@ -67,8 +71,17 @@ function settle(state: State, now: number): State {
   const view = sessionView(s, state.minutes, now);
   const ended = !s.done && view.finished;
   const completedAt = s.startedAt === null ? now : s.startedAt + Math.max(0, view.total - s.elapsed) * 1000;
+  // Focus belongs to the task even when the task itself is not finished yet: log each span.
+  const credit = (task: Task): Task => {
+    const endAt = ended ? completedAt : now;
+    const last = task.spans[task.spans.length - 1];
+    const spans = last?.session === s.id
+      ? [...task.spans.slice(0, -1), { ...last, seconds: last.seconds + added }]
+      : [...task.spans, { at: endAt - added * 1000, seconds: added, session: s.id }];
+    return { ...task, focusSeconds: task.focusSeconds + added, spans };
+  };
   return { ...state,
-    tasks: added > 0 ? state.tasks.map(task => task.id === s.taskId ? { ...task, focusSeconds: task.focusSeconds + added } : task) : state.tasks,
+    tasks: added > 0 ? state.tasks.map(task => task.id === s.taskId ? credit(task) : task) : state.tasks,
     session: { ...s, creditedFocusSeconds: focused, ...(ended ? { elapsed: view.total, startedAt: null, done: true } : {}) },
     stats: ended ? { day: dayKey(completedAt), count: (state.stats.day === dayKey(completedAt) ? state.stats.count : 0) + 1 } : state.stats,
   };
@@ -78,7 +91,7 @@ export function reducer(state: State, action: Action): State {
   switch (action.type) {
     case 'duration': return state.session && !state.session.done ? state : { ...state, minutes: clampMinutes(action.minutes), session: null };
     case 'add': {
-      const task = { ...action.task, focusSeconds: 0, distractions: 0 };
+      const task = { ...action.task, focusSeconds: 0, distractions: 0, spans: [] };
       // A task added to an anonymous timer only owns time from this point onward.
       const session = state.session && !state.session.done && !state.session.taskId && !state.tasks.length
         ? { ...state.session, taskId: task.id, creditedFocusSeconds: focusSecondsAt(state.session, action.now) } : state.session;
@@ -97,6 +110,16 @@ export function reducer(state: State, action: Action): State {
     }
     case 'sound': return { ...state, sound: action.enabled };
     case 'reset': return { ...settle(state, action.now), session: null };
+    case 'skip-break': {
+      const s = state.session;
+      if (!s || s.done) return state;
+      const view = sessionView(s, state.minutes, action.now);
+      // Re-evaluate at click time: a delayed or duplicate click must not skip focus.
+      if (view.finished || view.phase.kind !== 'break') return state;
+      const next = settle(state, action.now);
+      const elapsed = view.plan.slice(0, view.index + 1).reduce((sum, phase) => sum + phase.seconds, 0);
+      return { ...next, session: { ...next.session!, elapsed, startedAt: action.now } };
+    }
     case 'pause': {
       if (state.session?.startedAt == null) return state;
       const next = settle(state, action.now);
@@ -106,8 +129,12 @@ export function reducer(state: State, action: Action): State {
     case 'toggle': {
       const next = settle(state, action.now);
       const s = next.session;
-      if (!s || s.done) return { ...next, session: { id: action.sessionId ?? String(action.now), taskId: next.tasks[0]?.id ?? null,
-        creditedFocusSeconds: 0, distractionIDs: [], minutes: next.minutes, elapsed: 0, startedAt: action.now, done: false } };
+      if (!s || s.done) {
+        // A fresh session needs at least one minute; native controls reach here too.
+        if (next.minutes < 1) return next;
+        return { ...next, session: { id: action.sessionId ?? String(action.now), taskId: next.tasks[0]?.id ?? null,
+          creditedFocusSeconds: 0, distractionIDs: [], minutes: next.minutes, elapsed: 0, startedAt: action.now, done: false } };
+      }
       return { ...next, session: { ...s, elapsed: elapsedAt(s, action.now), startedAt: s.startedAt === null ? action.now : null } };
     }
     case 'tick': return state.session && !state.session.done && sessionView(state.session, state.minutes, action.now).finished ? settle(state, action.now) : state;

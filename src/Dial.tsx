@@ -49,14 +49,14 @@ export const Dial = memo(function Dial({ minutes, onChange, locked, remaining, p
     const d = drag.current;
     if (!d || d.pointer !== e.pointerId) return;
     const angle = pointerAngle(e, d.bounds);
-    d.value = Math.min(120, Math.max(1, d.value + angleDelta(angle, d.angle) / 6));
+    d.value = Math.min(120, Math.max(0, d.value + angleDelta(angle, d.angle) / 6));
     d.angle = angle;
     onChange(clampMinutes(d.value));
   }
   function end() { drag.current = null; setDragging(false); }
   function key(e: KeyboardEvent) {
     if (locked) return;
-    const values: Record<string, number> = { ArrowRight: minutes + 1, ArrowUp: minutes + 1, ArrowLeft: minutes - 1, ArrowDown: minutes - 1, PageUp: minutes + 5, PageDown: minutes - 5, Home: 1, End: 120 };
+    const values: Record<string, number> = { ArrowRight: minutes + 1, ArrowUp: minutes + 1, ArrowLeft: minutes - 1, ArrowDown: minutes - 1, PageUp: minutes + 5, PageDown: minutes - 5, Home: 0, End: 120 };
     if (e.key in values) { e.preventDefault(); onChange(clampMinutes(values[e.key])); }
   }
   return <div className={`dial ${dragging ? 'dragging' : ''} ${phase === 'break' && locked ? 'on-break' : ''} ${minutes >= 35 ? 'includes-break' : ''} ${showOutcome ? 'has-outcome' : ''}`}>
@@ -67,7 +67,7 @@ export const Dial = memo(function Dial({ minutes, onChange, locked, remaining, p
       {second && <circle className="dial-progress second-lap" cx="180" cy="180" r="141" pathLength="100" strokeDasharray={`${(minutes - 60) / 60 * 100} 100`} transform="rotate(-90 180 180)" />}
       <g aria-hidden="true">{ticks}</g>
       {[0, 15, 30, 45].map(n => { const p = point(n * 6, 104); return <text key={n} x={p.x} y={p.y} className="dial-number" dominantBaseline="central" textAnchor="middle">{n === 0 ? '60' : n}</text>; })}
-      {!locked && <g className="dial-handle" transform={`translate(${handle.x} ${handle.y})`} role="slider" tabIndex={0} aria-label="专注时长" aria-valuemin={1} aria-valuemax={120} aria-valuenow={minutes} aria-valuetext={`${minutes} 分钟，${minutes > 60 ? '第二圈' : '第一圈'}，${minutes >= 35 ? '含休息' : '无休息'}`} onKeyDown={key}>
+      {!locked && <g className="dial-handle" transform={`translate(${handle.x} ${handle.y})`} role="slider" tabIndex={0} aria-label="专注时长" aria-valuemin={0} aria-valuemax={120} aria-valuenow={minutes} aria-valuetext={`${minutes} 分钟，${minutes > 60 ? '第二圈' : '第一圈'}，${minutes >= 35 ? '含休息' : '无休息'}`} onKeyDown={key}>
         <circle className="handle-hit" r="22" /><circle className="handle-outer" r="13" /><circle className="handle-inner" r="5" />
       </g>}
     </svg>
