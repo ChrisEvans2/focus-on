@@ -9,7 +9,9 @@ let package = Package(
     targets: [
         .target(name: "FocusCore"),
         .target(name: "FocusVision", dependencies: ["FocusCore"]),
-        .executableTarget(name: "FocusOn", dependencies: ["FocusCore", "FocusVision"]),
+        .executableTarget(name: "FocusOn", dependencies: ["FocusCore", "FocusVision"],
+                          exclude: ["Resources/phase-pet.png"],
+                          resources: [.copy("Resources/phase-peek.png")]),
         .executableTarget(name: "FocusGazeDebug", dependencies: ["FocusCore", "FocusVision"]),
         .executableTarget(name: "FocusCoreChecks", dependencies: ["FocusCore"], path: "Tests/FocusCoreTests")
     ]

@@ -41,7 +41,8 @@ final class MenuBarController: NSObject {
         hoverWindow = MenuBarHoverWindow(content: panel)
         panel.onToggle = { [weak self] in
             guard let self else { return }
-            self.performAction(self.snapshot.running ? "pause" : "toggle")
+            let state = self.snapshot
+            self.performAction(state.isBreak && !state.finished ? "skip-break" : state.running ? "pause" : "toggle")
         }
         panel.onReset = { [weak self] in self?.performAction("reset") }
         localMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .keyDown]) { [weak self] event in

@@ -52,7 +52,7 @@ struct PetPose {
     }
 }
 
-final class PetCompanionView: NSView {
+class PetCompanionView: NSView {
     static let canvasSize = NSSize(width: 720, height: 500)
     var time: Double = 0
     var theme: PetTheme = .light { didSet { needsDisplay = true } }

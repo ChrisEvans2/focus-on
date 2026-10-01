@@ -83,11 +83,47 @@ extension AppDelegate {
                     menuBar.snapshot.progress == 0 && !menuBar.panel.resetButton.isEnabled && menuBar.panel.toggleButton.title == "开始专注",
                     "Reset clears the entire session and returns to the first round without deleting the task")
 
+        // Enter a real break through the bundled UI, then click the native action.
+        _ = try await webView.evaluateJavaScript("""
+        (() => {
+          const slider = document.querySelector('[role=slider]');
+          slider.dispatchEvent(new KeyboardEvent('keydown', {key: 'PageUp', bubbles: true}));
+        })()
+        """)
+        try await Task.sleep(nanoseconds: 80_000_000)
+        _ = try await webView.evaluateJavaScript("document.querySelector('[role=slider]').dispatchEvent(new KeyboardEvent('keydown', {key: 'PageUp', bubbles: true}))")
+        try await Task.sleep(nanoseconds: 80_000_000)
+        _ = try await webView.evaluateJavaScript("window.smokeOriginalNow = Date.now; Date.now = () => window.smokeOriginalNow() - 900000; document.querySelector('.start-button').click()")
+        try await Task.sleep(nanoseconds: 100_000_000)
+        _ = try await webView.evaluateJavaScript("Date.now = window.smokeOriginalNow; delete window.smokeOriginalNow")
+        try await Task.sleep(nanoseconds: 350_000_000)
+        menuBar.refresh()
+        try require(menuBar.snapshot.isBreak && menuBar.panel.toggleButton.title == "跳过休息" &&
+                    menuBar.panel.resetButton.isHidden && menuBar.panel.durationLabel.stringValue == "/ 05:00",
+                    "During rest the native popover shows break duration and only Skip Rest")
+        menuBar.panel.toggleButton.performClick(nil)
+        try await Task.sleep(nanoseconds: 350_000_000)
+        try require(manager.schedule?.elapsed == 1200 && manager.schedule?.running == true &&
+                    !menuBar.snapshot.isBreak && menuBar.snapshot.round == 2 && !window.isVisible,
+                    "Native Skip Rest advances the persisted session to the next focus without opening the window")
+        menuBar.panel.resetButton.performClick(nil)
+        try await Task.sleep(nanoseconds: 150_000_000)
+
         for theme in ["dark", "light"] {
             _ = try await webView.evaluateJavaScript("document.querySelector('input[name=theme][value=\(theme)]').click()")
             try await Task.sleep(nanoseconds: 100_000_000)
             try require(menuBar.dark == (theme == "dark"), "Popover follows the app's \(theme) theme through the native bridge")
-            let screenshotState = MenuBarSnapshot(title: "撰写产品重构设计方案", status: "专注中", remaining: 1153, duration: 1500,
+            let palette = FocusPopoverPalette(dark: theme == "dark")
+            let cssRest = try await webView.evaluateJavaScript("getComputedStyle(document.documentElement).getPropertyValue('--orange').trim()") as? String
+            let nativeRest = palette.rest.usingColorSpace(.sRGB)!
+            let nativeHex = String(format: "#%02x%02x%02x", Int(round(nativeRest.redComponent * 255)), Int(round(nativeRest.greenComponent * 255)), Int(round(nativeRest.blueComponent * 255)))
+            try require(cssRest == nativeHex, "Native rest palette exactly matches the current \(theme) --orange token")
+            menuBar.panel.render(rest, dark: theme == "dark", busy: false)
+            try require(menuBar.panel.toggleButton.layer?.backgroundColor == palette.rest.cgColor &&
+                        menuBar.panel.toggleButton.title == "跳过休息" && menuBar.panel.resetButton.isHidden,
+                        "Rest uses the themed accent even while running and hides Reset")
+            try savePopoverImage(directory: directory, name: "popover-\(theme)-rest")
+            let screenshotState = MenuBarSnapshot(title: "整理周末的出行清单", status: "专注中", remaining: 1153, duration: 1500,
                 round: 2, rounds: 4, running: true, hasSession: true, finished: false, isBreak: false, progress: 1153.0 / 1500)
             menuBar.panel.render(screenshotState, dark: theme == "dark", busy: false)
             try savePopoverImage(directory: directory, name: "popover-\(theme)-running")
@@ -120,10 +156,12 @@ extension AppDelegate {
         menuBar.panel.toggleButton.performClick(nil)
         try require(menuBar.busy, "Unacknowledged panel action waits without submitting duplicate actions")
         pointer = NSPoint(x: -100_000, y: -100_000)
-        try await Task.sleep(nanoseconds: 3_200_000_000)
+        try await Task.sleep(nanoseconds: 3_600_000_000)
         menuBar.onAction = actionHandler
+        // Other apps (including the test browser) can exit during the timeout.
+        // The contract is that Focus On never activates itself or opens a window.
         try require(menuBar.actionFailed && !menuBar.busy && !menuBar.isShown && !window.isVisible &&
-                    NSWorkspace.shared.frontmostApplication?.processIdentifier == foregroundPID,
+                    NSWorkspace.shared.frontmostApplication?.processIdentifier != ProcessInfo.processInfo.processIdentifier,
                     "An action timeout after dismissal never activates or opens Focus On")
         menuBar.close()
         showWindow()

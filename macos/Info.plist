@@ -6,6 +6,7 @@
 <key>CFBundleDisplayName</key><string>Focus On</string>
 <key>CFBundleExecutable</key><string>FocusOn</string>
 <key>CFBundlePackageType</key><string>APPL</string>
+<key>CFBundleIconFile</key><string>FocusOn.icns</string>
 <key>CFBundleShortVersionString</key><string>0.1.4</string>
 <key>CFBundleVersion</key><string>5</string>
 <key>LSMinimumSystemVersion</key><string>13.0</string>

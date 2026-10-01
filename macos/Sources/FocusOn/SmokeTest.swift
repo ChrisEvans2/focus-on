@@ -12,8 +12,19 @@ extension AppDelegate {
                 guard condition else { throw NSError(domain: "FocusOnSmokeTest", code: 1, userInfo: [NSLocalizedDescriptionKey: name]) }
                 checks.append(name)
             }
+            func finish() throws {
+                let data = try JSONSerialization.data(withJSONObject: ["passed": true, "checks": checks], options: [.prettyPrinted, .sortedKeys])
+                try data.write(to: URL(fileURLWithPath: directory).appendingPathComponent("result.json"))
+                print("Native smoke test passed: \(checks.count) checks")
+                RunLoop.main.perform { NSApp.terminate(nil) }
+            }
             do {
                 try FileManager.default.createDirectory(atPath: directory, withIntermediateDirectories: true)
+                if CommandLine.arguments.contains("--phase-reminder-only") {
+                    try await checkPhaseReminder(directory: directory, require: require)
+                    try finish()
+                    return
+                }
                 let count = try await webView.evaluateJavaScript("document.querySelectorAll('.start-button').length") as? Int
                 try require(count == 1, "Bundled React UI loads in WKWebView without a server")
                 _ = try await webView.evaluateJavaScript("document.querySelector('.settings-button').click()")
@@ -26,7 +37,7 @@ extension AppDelegate {
                 (() => {
                   document.querySelector('dialog').close();
                   const input = document.querySelector('#task-input');
-                  Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, '菜单栏专注任务');
+                  Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, '读完这本书的两章');
                   input.dispatchEvent(new Event('input', { bubbles: true }));
                 })()
                 """)
@@ -36,7 +47,7 @@ extension AppDelegate {
                 try require(manager.schedule?.running == true && manager.schedule?.monitoring == false, "Start reaches native schedule with camera disabled")
                 let remaining = try await webView.evaluateJavaScript("document.querySelector('.dial-time').textContent") as? String
                 try require(remaining != nil, "Running countdown renders")
-                try require(menuBar.item.isVisible && menuBar.tooltipText.contains("菜单栏专注任务") == true,
+                try require(menuBar.item.isVisible && menuBar.tooltipText.contains("读完这本书的两章") == true,
                             "Clicking Start submits the draft and synchronizes its title to the native menu bar")
                 _ = try await webView.evaluateJavaScript("document.querySelector('.minimize-button').click()")
                 try await Task.sleep(nanoseconds: 150_000_000)
@@ -161,11 +172,9 @@ extension AppDelegate {
                 try require(manager.diagnosticText == "摄像头已关闭", "Stopping removes stale angles from diagnostics")
                 try await checkCameraLifecycle(require: require)
                 try await checkPetReminder(directory: directory, require: require)
+                try await checkPhaseReminder(directory: directory, require: require)
                 try await checkHistoryUI(directory: directory, require: require)
-                let data = try JSONSerialization.data(withJSONObject: ["passed": true, "checks": checks], options: [.prettyPrinted, .sortedKeys])
-                try data.write(to: URL(fileURLWithPath: directory).appendingPathComponent("result.json"))
-                print("Native smoke test passed: \(checks.count) checks")
-                RunLoop.main.perform { NSApp.terminate(nil) }
+                try finish()
             } catch {
                 let data = try? JSONSerialization.data(withJSONObject: ["passed": false, "checks": checks, "error": error.localizedDescription], options: [.prettyPrinted])
                 try? data?.write(to: URL(fileURLWithPath: directory).appendingPathComponent("result.json"))

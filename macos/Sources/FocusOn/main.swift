@@ -161,6 +161,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKSc
         case "theme":
             guard let value = body["theme"] as? String, let theme = PetTheme(rawValue: value) else { return }
             manager.reminder.theme = theme
+            manager.phaseReminder.theme = theme
             menuBar.dark = value == "dark"
         case "sync":
             guard let data = body["schedule"], let json = try? JSONSerialization.data(withJSONObject: data),

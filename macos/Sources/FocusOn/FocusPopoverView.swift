@@ -15,7 +15,7 @@ struct MenuBarSnapshot {
     var progress: Double
 
     var time: String { Self.clock(remaining) }
-    var actionTitle: String { running ? "暂停" : finished ? "重新开始" : hasSession ? "继续专注" : "开始专注" }
+    var actionTitle: String { isBreak && !finished ? "跳过休息" : running ? "暂停" : finished ? "重新开始" : hasSession ? "继续专注" : "开始专注" }
     static func clock(_ seconds: Int) -> String { String(format: "%02d:%02d", seconds / 60, seconds % 60) }
 
     static func make(schedule: FocusSchedule?, taskTitle: String, at now: Double) -> Self {
@@ -53,7 +53,7 @@ struct FocusPopoverPalette {
         text = color(dark ? 0xebebeb : 0x2d302d)
         muted = color(dark ? 0xababab : 0x757a73)
         accent = color(dark ? 0xd6e92f : 0x597e6f)
-        rest = color(dark ? 0xb9c1db : 0xa86234)
+        rest = color(dark ? 0x7f96e3 : 0xa86234)
         soft = color(dark ? 0x333333 : 0xedf1eb)
         line = color(dark ? 0x3b3b3b : 0xe5e7e0)
         onAccent = color(dark ? 0x1b1a19 : 0xffffff)
@@ -124,7 +124,8 @@ final class FocusPopoverView: NSView {
 
     func render(_ state: MenuBarSnapshot, dark: Bool, busy: Bool) {
         let palette = FocusPopoverPalette(dark: dark)
-        let accent = state.isBreak ? palette.rest : palette.accent
+        let resting = state.isBreak && !state.finished
+        let accent = resting ? palette.rest : palette.accent
         appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
         layer?.backgroundColor = palette.canvas.cgColor
         layer?.borderColor = palette.line.cgColor
@@ -132,6 +133,7 @@ final class FocusPopoverView: NSView {
         roundsLabel.stringValue = "第 \(state.round) / \(state.rounds) 轮"
         titleLabel.stringValue = state.title
         titleLabel.toolTip = state.title
+        taskLabel.stringValue = resting ? "休息时间 · 当前任务" : "当前任务"
         timeLabel.stringValue = state.time
         durationLabel.stringValue = "/ \(MenuBarSnapshot.clock(state.duration))"
         for label in [statusLabel, roundsLabel, taskLabel, durationLabel] { label.textColor = palette.muted }
@@ -150,14 +152,16 @@ final class FocusPopoverView: NSView {
         durationLabel.frame = NSRect(x: 192, y: 123, width: 64, height: 18)
         track.frame = NSRect(x: 16, y: 160, width: 240, height: 5)
         fill.frame = NSRect(x: 0, y: 0, width: 240 * state.progress, height: 5)
-        toggleButton.frame = NSRect(x: 16, y: 182, width: 192, height: 32)
+        toggleButton.frame = NSRect(x: 16, y: 182, width: resting ? 240 : 192, height: 32)
         resetButton.frame = NSRect(x: 216, y: 182, width: 40, height: 32)
+        resetButton.isHidden = resting
+        toggleButton.nextKeyView = resting ? toggleButton : resetButton
         toggleButton.title = state.actionTitle
         toggleButton.setAccessibilityLabel(state.actionTitle)
-        toggleButton.image = NSImage(systemSymbolName: state.running ? "pause.fill" : "play.fill", accessibilityDescription: nil)
-        toggleButton.contentTintColor = state.running ? palette.text : palette.onAccent
-        toggleButton.layer?.backgroundColor = (state.running ? palette.soft : accent).cgColor
-        toggleButton.layer?.borderColor = (state.running ? palette.line : accent).cgColor
+        toggleButton.image = NSImage(systemSymbolName: resting ? "forward.end.fill" : state.running ? "pause.fill" : "play.fill", accessibilityDescription: nil)
+        toggleButton.contentTintColor = state.running && !resting ? palette.text : palette.onAccent
+        toggleButton.layer?.backgroundColor = (state.running && !resting ? palette.soft : accent).cgColor
+        toggleButton.layer?.borderColor = (state.running && !resting ? palette.line : accent).cgColor
         resetButton.contentTintColor = palette.muted
         resetButton.layer?.backgroundColor = palette.soft.cgColor
         resetButton.layer?.borderColor = palette.line.cgColor

@@ -7,6 +7,8 @@ final class FocusSessionManager {
     let camera: CameraCapturing
     let engine = AttentionEngine()
     let reminder = ReminderController()
+    let phaseReminder = ReminderController(isPhaseReminder: true)
+    private var lastPhase: (sessionId: String, snapshot: MenuBarSnapshot)?
     var onStatus: ((String, String) -> Void)?
     var onDiagnostics: ((String) -> Void)?
     var onDistraction: ((_ id: String, _ sessionId: String, _ at: Double) -> Void)?
@@ -65,6 +67,7 @@ final class FocusSessionManager {
     func stop() {
         awaitingPauseAcknowledgement = awaitingPauseAcknowledgement || schedule?.running == true
         schedule = nil; failed = false; stopMonitoring()
+        lastPhase = nil; phaseReminder.hide(immediate: true)
         publish("idle", "摄像头已关闭")
     }
     func shutdown(completion: @escaping () -> Void = {}) {
@@ -74,6 +77,7 @@ final class FocusSessionManager {
     func tick() {
         guard !terminated else { return }
         let now = epochTime()
+        updatePhaseReminder(at: now)
         guard let schedule, schedule.shouldMonitor(at: now) else {
             stopMonitoring()
             if schedule?.phase(at: now) == "break" { publish("idle", "休息中 · 摄像头已关闭") }
@@ -91,6 +95,24 @@ final class FocusSessionManager {
         }
         if uptime - lastSample > 8 {
             fail("摄像头未提供画面，请检查连接后重试")
+        }
+    }
+
+    private func updatePhaseReminder(at now: Double) {
+        guard let schedule, let sessionId = schedule.sessionId else {
+            lastPhase = nil; phaseReminder.hide(immediate: true); return
+        }
+        let state = MenuBarSnapshot.make(schedule: schedule, taskTitle: "", at: now)
+        defer { lastPhase = (sessionId, state) }
+        guard let previous = lastPhase, previous.sessionId == sessionId else {
+            phaseReminder.hide(immediate: true); return
+        }
+        if previous.snapshot.running && (state.finished || state.running) &&
+            (state.finished != previous.snapshot.finished || state.isBreak != previous.snapshot.isBreak || state.round != previous.snapshot.round) {
+            let message = state.finished ? "本次专注完成啦，辛苦了。" : state.isBreak ? "专注结束啦，休息 5 分钟。" : "休息结束啦，继续专注吧。"
+            phaseReminder.show(message: message)
+        } else if !state.running && !state.finished {
+            phaseReminder.hide(immediate: true)
         }
     }
 
